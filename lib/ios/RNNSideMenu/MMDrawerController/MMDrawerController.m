@@ -161,6 +161,8 @@ static NSString *MMDrawerOpenSideKey = @"MMDrawerOpenSide";
 @property (nonatomic, strong) MMDrawerCenterContainerView * centerContainerView;
 @property (nonatomic, strong) UIView * dummyStatusBarView;
 
+@property (nonatomic, strong) UIView * shadow;
+
 @property (nonatomic, assign) CGRect startingPanRect;
 @property (nonatomic, copy) MMDrawerControllerDrawerVisualStateBlock drawerVisualState;
 @property (nonatomic, copy) MMDrawerGestureShouldRecognizeTouchBlock gestureShouldRecognizeTouch;
@@ -217,7 +219,7 @@ static NSString *MMDrawerOpenSideKey = @"MMDrawerOpenSide";
     [self setAnimationVelocityLeft:MMDrawerDefaultAnimationVelocity];
 	[self setAnimationVelocityRight:MMDrawerDefaultAnimationVelocity];
     
-    [self setShowsShadow:YES];
+    [self setShowsShadow:NO];
     [self setShouldStretchLeftDrawer:YES];
 	[self setShouldStretchRightDrawer:YES];
     
@@ -236,6 +238,9 @@ static NSString *MMDrawerOpenSideKey = @"MMDrawerOpenSide";
     
     // set defualt panVelocityXAnimationThreshold
     [self setPanVelocityXAnimationThreshold:MMDrawerPanVelocityXAnimationThreshold];
+	self.shadow = [[UIView alloc]initWithFrame:CGRectMake(0, 0, UIScreen.mainScreen.bounds.size.width, UIScreen.mainScreen.bounds.size.height)];
+	self.shadow.backgroundColor = [UIColor blackColor];
+	self.shadow.alpha = 0.0;
 	
 	_rightSideEnabled = _leftSideEnabled = YES;
 }
@@ -357,6 +362,7 @@ static NSString *MMDrawerOpenSideKey = @"MMDrawerOpenSide";
              if(completion){
                  completion(finished);
              }
+			 [self.centerContainerView sendSubviewToBack: self.shadow];
          }];
     }
 }
@@ -395,7 +401,8 @@ static NSString *MMDrawerOpenSideKey = @"MMDrawerOpenSide";
             
             CGFloat distance = ABS(CGRectGetMinX(oldFrame)-newFrame.origin.x);
             NSTimeInterval duration = MAX(distance/ABS(velocity),MMDrawerMinimumAnimationDuration);
-            
+			[self.centerContainerView addSubview:self.shadow];
+			[self.centerContainerView bringSubviewToFront: self.shadow];
             [UIView
              animateWithDuration:(animated?duration:0.0)
              delay:0.0
@@ -778,7 +785,8 @@ static NSString *MMDrawerOpenSideKey = @"MMDrawerOpenSide";
     [super viewDidAppear:animated];
     [self updateShadowForCenterView];
     [self.centerViewController endAppearanceTransition];
-    
+	[self.centerContainerView sendSubviewToBack:self.shadow];
+
     if(self.openSide == MMDrawerSideLeft) {
         [self.leftDrawerViewController endAppearanceTransition];
     }
@@ -1193,13 +1201,16 @@ static NSString *MMDrawerOpenSideKey = @"MMDrawerOpenSide";
             newFrame.origin.y = floor(newFrame.origin.y);
             self.centerContainerView.frame = newFrame;
             
-            [self.centerContainerView addSubview:self.centerContainerView.overlayView];
-            [self.centerContainerView bringSubviewToFront:self.centerContainerView.overlayView];
-            self.centerContainerView.overlayView.alpha = percentVisible;
+			[self.centerContainerView addSubview:self.shadow];
+			[self.centerContainerView bringSubviewToFront:self.shadow];
+			self.shadow.alpha = percentVisible * 0.5;
             
             break;
         }
         case UIGestureRecognizerStateEnded:
+			if (self.centerContainerView.frame.origin.x == 0) {
+				[self.centerContainerView sendSubviewToBack:self.shadow];
+			}
         case UIGestureRecognizerStateCancelled: {
             self.startingPanRect = CGRectNull;
             CGPoint velocity = [panGesture velocityInView:self.childControllerContainerView];
@@ -1291,6 +1302,7 @@ static NSString *MMDrawerOpenSideKey = @"MMDrawerOpenSide";
 }
 
 -(void)updateDrawerVisualStateForDrawerSide:(MMDrawerSide)drawerSide percentVisible:(CGFloat)percentVisible{
+	self.shadow.alpha = percentVisible * 0.5;
     if(self.drawerVisualState){
         self.drawerVisualState(self,drawerSide,percentVisible);
     }
